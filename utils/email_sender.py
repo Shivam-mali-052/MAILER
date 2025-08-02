@@ -1,28 +1,31 @@
 import smtplib
-import streamlit as st
+import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+import streamlit as st
 
-def send_email(recipient, body):
+def send_email(to_email, email_body):
     try:
         sender_email = st.secrets["SENDER_EMAIL"]
-        sender_password = st.secrets["EMAIL_PASSWORD"]
-        smtp_server = st.secrets.get("SMTP_SERVER", "smtp.gmail.com")
-        smtp_port = st.secrets.get("SMTP_PORT", 587)
+        password = st.secrets["EMAIL_PASSWORD"]
+        smtp_server = st.secrets["SMTP_SERVER"]
+        smtp_port = st.secrets["SMTP_PORT"]
 
-        message = MIMEMultipart()
-        message['From'] = sender_email
-        message['To'] = recipient
-        message['Subject'] = "Response To Your Email"
+        message = MIMEMultipart("alternative")
+        message["Subject"] = "Auto Reply"
+        message["From"] = sender_email
+        message["To"] = to_email
 
-        message.attach(MIMEText(body, "plain"))
+        part = MIMEText(email_body, "html")
+        message.attach(part)
 
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        server.send_message(message)
-        server.quit()
+        context = ssl.create_default_context()
+        with smtplib.SMTP(smtp_server, smtp_port) as server:
+            server.starttls(context=context)
+            server.login(sender_email, password)
+            server.sendmail(sender_email, to_email, message.as_string())
+
         return True
     except Exception as e:
-        print("Error sending email:", e)
+        print("Email sending error:", e)
         return False
